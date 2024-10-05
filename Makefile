@@ -11,11 +11,14 @@ SRCS = main.c
 OBJS = $(SRCS:.c=.o)
 
 # Define compiler flags
-CFLAGS = -Wall -g
+CFLAGS = -Wall -g -I/opt/homebrew/Cellar/raylib/5.0/include
+
+# Define linker flags
+LDFLAGS = -L/opt/homebrew/Cellar/raylib/5.0/lib -lraylib -framework OpenGL -framework Cocoa -framework IOKit
 
 # Rule to build the target executable
 $(TARGET): $(OBJS)
-	@$(CC) $(CFLAGS) -o $(TARGET) $(OBJS)
+	@$(CC) $(CFLAGS) -o $(TARGET) $(OBJS) $(LDFLAGS)
 
 # Rule to build object files
 %.o: %.c
