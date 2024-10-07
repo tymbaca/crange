@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include "arena.h"
+#include "arena/arena.h"
 
 int main() {
     Arena* arena = arena_create();
