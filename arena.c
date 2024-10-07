@@ -12,6 +12,14 @@ typedef struct Arena {
 
 size_t _default_arena_size = 10 * 1024;
 
+size_t align(size_t offset, size_t alignment) {
+    size_t remainder = offset % alignment;
+    if (remainder == 0) {
+        return offset;
+    }
+    return offset + (alignment - remainder);
+}
+
 Arena* _arena_create_size(size_t size) {
     Arena* arena = malloc(sizeof(Arena));
     arena->start = malloc(size);
@@ -27,6 +35,9 @@ Arena* arena_create() {
 }
 
 void* _put_and_shift(Arena* arena, size_t size) {
+    // align previous offset
+    arena->offset = align(arena->offset, sizeof(void*));
+
     void* ptr = (char*)arena->start + arena->offset;
     arena->offset += size;
     return ptr;
@@ -37,7 +48,7 @@ bool _can_fit(Arena* arena, size_t size) {
 }
 
 void* arena_alloc(Arena* arena, size_t size) {
-    assert(arena != NULL);
+    if (arena == NULL) return NULL;
 
     if (!_can_fit(arena, size)) {
         if (arena->next == NULL) {
@@ -71,29 +82,4 @@ void arena_free(Arena* arena) {
 
     free(arena->start);
     free(arena);
-}
-
-int main() {
-    Arena* arena = arena_create(16);
-    char* str1 = arena_alloc(arena, 6);
-    strcpy(str1, "hello"); // 6th is \0
-    char* str2 = arena_alloc(arena, 6);
-    strcpy(str2, "world"); // 6th is \0
-    char* str3 = arena_alloc(arena, 4);
-    strcpy(str3, "wow"); // 4th is \0
-    char* str4 = arena_alloc(arena, 16);
-    strcpy(str4, "hello world wow"); // 16th is \0
-
-    arena_reset(arena);
-
-    str1 = arena_alloc(arena, 6);
-    strcpy(str1, "HELLO"); // 6th is \0
-    str2 = arena_alloc(arena, 6);
-    strcpy(str2, "WORLD"); // 6th is \0
-    str3 = arena_alloc(arena, 5);
-    strcpy(str3, "FUCK"); // 5th is \0
-    str4 = arena_alloc(arena, 4);
-    strcpy(str4, "WOW"); // 4th is \0
-
-    arena_free(arena);
 }

@@ -1,6 +1,11 @@
 #include <stdlib.h>
 
-typedef struct Arena Arena;
+typedef struct Arena {
+    void* start;
+    size_t offset;
+    size_t size;
+    struct Arena* next;
+} Arena;
 
 Arena* arena_create();
 void* arena_alloc(Arena* arena, size_t size);
