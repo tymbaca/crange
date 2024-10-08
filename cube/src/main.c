@@ -3,7 +3,6 @@
 #include "raylib.h"
 #include "arena.h"
 
-
 typedef enum {
     None,
     Player,
@@ -21,10 +20,11 @@ typedef struct {
     Value speed;
 } Entity;
 
-typedef struct {
+typedef struct World {
     Camera3D *camera;
     Entity entities[1024];
     size_t entities_len;
+    void (*update)(struct World *world);
 } World;
 
 size_t world_add_entity(World *world, Entity entity) {
@@ -93,7 +93,6 @@ void world_draw(World *world) {
 int main() {
     InitWindow(800, 600, "template");
     Arena *arena = arena_create();
-    
 
     // Define the camera to look into our 3d world
     Camera3D camera = { 0 };
@@ -108,6 +107,7 @@ int main() {
 
     World world = {0};
     world.camera = &camera;
+    world.update = world_update;
     Entity player = {
         .type = Player,
         .position = {0},
@@ -132,7 +132,7 @@ int main() {
 
         world_draw(&world);
 
-        world_update(&world);
+        world.update(&world);
         Entity player = world_get_entity(&world, player_id);
         camera.target = player.position;
 
