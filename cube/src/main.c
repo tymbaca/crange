@@ -1,7 +1,10 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include "raylib.h"
 #include "arena.h"
+
+#include "raylib.h"
+#define RAYGUI_IMPLEMENTATION
+#include "raygui.h"
 
 typedef enum {
     None,
@@ -125,18 +128,31 @@ int main() {
     size_t player_id = world_add_entity(&world, player);
     world_add_entity(&world, enemy);
 
+    Model railgun = LoadModel("assets/railgun.obj");
+    bool showMessageBox = false;
+
     while (!WindowShouldClose()) {
         BeginDrawing();
         ClearBackground(BLACK);
         BeginMode3D(camera);
-
+        
+        DrawModelWires(railgun, (Vector3){0}, 1, GRAY);
         world_draw(&world);
-
+        
         world.update(&world);
         Entity player = world_get_entity(&world, player_id);
         camera.target = player.position;
 
         EndMode3D();
+        if (GuiButton((Rectangle){ 24, 24, 120, 30 }, "#191#Show Message")) showMessageBox = true;
+
+        if (showMessageBox) {
+            int result = GuiMessageBox((Rectangle){ 85, 70, 250, 100 },
+                "#191#Message Box", "Hi! This is a message!", "Nice;Cool");
+
+            if (result >= 0) showMessageBox = false;
+        }
+
         EndDrawing();
     }
 

@@ -29,7 +29,7 @@ Yeller new_name_yeller(char* name) {
     self->name = name;
 
     return (Yeller){
-        .data = (void*)(self),
+        .data = (void*)self,
         .yell = name_yeller_yell,
         .log_yell = name_yeller_log_yell,
     };
