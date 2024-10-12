@@ -51,23 +51,6 @@ void player_camera_update(Player *p) {
 }
 
 void player_update_diraction(Player *p) {
-    Vector2 mouse = GetMouseDelta();
-    // NEED CODE HERE
-    // want to rotate the p->direction as if it was FPS shooter
-    //
-    // Adjust sensitivity as needed
-    float sensitivity = 0.001f;
-
-    // Rotate around the Y-axis (yaw) for horizontal mouse movement
-    Matrix rotationYaw = MatrixRotateY(-mouse.x * sensitivity);
-    p->direction = Vector3Transform(p->direction, rotationYaw);
-
-    // Compute right vector for pitch rotation
-    Vector3 right = Vector3CrossProduct(p->direction, (Vector3){ 0.0f, 1.0f, 0.0f });
-    Matrix rotationPitch = MatrixRotate(right, -mouse.y * sensitivity);
-
-    p->direction = Vector3Transform(p->direction, rotationPitch);
-    p->direction = Vector3Normalize(p->direction);  // Normalize after applying rotations
 }
 
 Vector3 Vector3MultiplyValue(Vector3 v, float mul) {
