@@ -7,22 +7,91 @@
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
 
+typedef struct Value {
+    float max, val;
+} Value;
+
 typedef struct Player {
+    Value speed;
     Vector3 position;
     Vector3 direction;
     Camera3D *camera;
 } Player;
+
+typedef struct Direction {
+    float pitch; // up/down [-89; 89]
+    float yaw; // left/right [0;360)
+} Direction;
+
+float fwarp(float val, float max) {
+    return fmodf(fmodf(val, max) + max, max);
+}
+
+Direction direction_yaw(Direction dir, float angle) {
+    dir.yaw += angle;
+    dir.yaw = fwarp(dir.yaw, 360);
+    return dir;
+}
+
+Direction direction_pitch(Direction dir, float angle) {
+    dir.pitch += angle;
+    dir.pitch = Clamp(dir.pitch, -89, 89);
+    return dir;
+}
+
+Direction direction_apply(Direction dir, float pitch, float yaw) {
+    dir = direction_pitch(dir, pitch);
+    dir = direction_yaw(dir, yaw);
+    return dir;
+}
 
 void player_camera_update(Player *p) {
     p->camera->position = p->position;
     p->camera->target = Vector3Add(p->position, p->direction);
 }
 
-void player_update(Player *p) {
+void player_update_diraction(Player *p) {
     Vector2 mouse = GetMouseDelta();
-    p->direction = Vector3RotateByAxisAngle(p->direction, (Vector3){.y = 1}, -mouse.x*0.01);
-    p->direction = Vector3RotateByAxisAngle(p->direction, (Vector3){.x = 1}, mouse.y*0.01);
+    // NEED CODE HERE
+    // want to rotate the p->direction as if it was FPS shooter
+    //
+    // Adjust sensitivity as needed
+    float sensitivity = 0.001f;
 
+    // Rotate around the Y-axis (yaw) for horizontal mouse movement
+    Matrix rotationYaw = MatrixRotateY(-mouse.x * sensitivity);
+    p->direction = Vector3Transform(p->direction, rotationYaw);
+
+    // Compute right vector for pitch rotation
+    Vector3 right = Vector3CrossProduct(p->direction, (Vector3){ 0.0f, 1.0f, 0.0f });
+    Matrix rotationPitch = MatrixRotate(right, -mouse.y * sensitivity);
+
+    p->direction = Vector3Transform(p->direction, rotationPitch);
+    p->direction = Vector3Normalize(p->direction);  // Normalize after applying rotations
+}
+
+Vector3 Vector3MultiplyValue(Vector3 v, float mul) {
+    return Vector3Multiply(v, (Vector3){.x = mul, .y = mul, .z = mul});
+}
+
+void player_update_position(Player *p) {
+    if (IsKeyDown(KEY_W)) {
+        p->position = Vector3Add(p->position, Vector3MultiplyValue(p->direction, p->speed.val));
+    }
+    if (IsKeyDown(KEY_S)) {
+        p->position = Vector3Subtract(p->position, Vector3MultiplyValue(p->direction, p->speed.val));
+    }
+    if (IsKeyDown(KEY_A)) {
+
+    }
+    if (IsKeyDown(KEY_D)) {
+
+    }
+}
+
+void player_update(Player *p) {
+    player_update_position(p);
+    player_update_diraction(p);
     player_camera_update(p);
 }
 
@@ -45,6 +114,9 @@ void draw_gizmo(float size) {
 }
 
 int main() {
+    /* printf("%f\n", fwarp(359.999, 360)); */
+    /* return 0; */
+
     InitWindow(800, 600, "template");
     SetTargetFPS(60);
 
@@ -56,16 +128,21 @@ int main() {
     camera.fovy = 45.0f;                                // Camera field-of-view Y
     camera.projection = CAMERA_PERSPECTIVE;
 
-    Player player = {.camera = &camera, .direction = (Vector3){.x = 1}, .position = (Vector3){ 0.0f, 10.0f, -10.0f }};
+    Player player = {
+        .camera = &camera, 
+        .direction = (Vector3){.x = 0, .y = -1, .z = 1}, 
+
+        .position = (Vector3){ 0.0f, 10.0f, -10.0f }, 
+        .speed = {.max = 1, .val = 1},
+    };
     DisableCursor();
 
     while (!WindowShouldClose()) {
-        debug(camera);
+        /* debug(camera); */
 
         BeginDrawing();
         ClearBackground(BLACK);
         BeginMode3D(camera);
-
         
         player_update(&player);
         
