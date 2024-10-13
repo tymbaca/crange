@@ -195,10 +195,28 @@ void load_waepon_models() {
     weapon_model_by_type[WEAPON_RAILGUN] = LoadModel("assets/railgun.obj");
 }
 
-// UP is {0,1,0}
-Quaternion Vector3ToQuaternion(Vector3 v) {
-    /* Vector3 s = Vector3CrossProduct(v, Vector3UP); */
-    /* Vector3 un = Vector3CrossProduct(v, s); */
+// UP is {0,1,0} (wtf)
+Quaternion Vector3ToQuaternion(Vector3 vec) {
+    Quaternion q = QuaternionFromMatrix(MatrixLookAt((Vector3){0}, vec, Vector3UP));
+    q = QuaternionMultiply(q, QuaternionFromEuler(0, -90*DEG2RAD, 0));
+
+    /* // Draw it's angle axis */
+    /* Quaternion q = QuaternionFromEuler(0, debug_dir.yaw, -debug_dir.pitch); */
+
+    Vector3 axis = {0};
+    float angle = 0;
+    QuaternionToAxisAngle(q, &axis, &angle);
+    axis = Vector3RotateByAxisAngle(axis, (Vector3){.y=1}, -90*DEG2RAD);
+    DrawLine3D((Vector3){0}, axis, YELLOW);
+    printf("angle: %f, axis: {%f, %f, %f}\n", angle, axis.x, axis.y, axis.z);
+
+    return QuaternionFromAxisAngle(axis, -angle);
+}
+
+Matrix MatrixFromDirection(Direction dir) {
+    Vector3 vec = DirectionToVector3(dir);
+    Quaternion q = Vector3ToQuaternion(vec);
+    return QuaternionToMatrix(q);
 }
 
 Direction debug_dir = {0};
@@ -225,9 +243,11 @@ void debug_direction() {
     Model railgun_debug = weapon_model_by_type[WEAPON_RAILGUN];
     /* railgun_debug.transform = MatrixLookAt((Vector3){0}, vec, Vector3UP); */
     Quaternion q = QuaternionFromMatrix(MatrixLookAt((Vector3){0}, vec, Vector3UP));
+    q = QuaternionMultiply(q, QuaternionFromEuler(0, -90*DEG2RAD, 0));
 
     /* // Draw it's angle axis */
     /* Quaternion q = QuaternionFromEuler(0, debug_dir.yaw, -debug_dir.pitch); */
+
     Vector3 axis = {0};
     float angle = 0;
     QuaternionToAxisAngle(q, &axis, &angle);
@@ -235,7 +255,11 @@ void debug_direction() {
     DrawLine3D((Vector3){0}, axis, YELLOW);
     printf("angle: %f, axis: {%f, %f, %f}\n", angle, axis.x, axis.y, axis.z);
 
-    DrawModelEx(railgun_debug, (Vector3){0}, axis, -angle*RAD2DEG, Vector3One(), WHITE);
+    q = QuaternionFromAxisAngle(axis, -angle);
+
+    railgun_debug.transform = QuaternionToMatrix(q);
+
+    /* DrawModelEx(railgun_debug, (Vector3){0}, axis, -angle*RAD2DEG, Vector3One(), WHITE); */
     DrawModel(railgun_debug, (Vector3){0}, 1, RED);
 }
 
