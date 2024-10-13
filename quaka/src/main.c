@@ -7,6 +7,8 @@
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
 
+#include "collider.c"
+
 void printf_quaternion(Quaternion q) {
     /* printf("Quaternion: x = %f, y = %f, z = %f, w = %f\n", q.x, q.y, q.z, q.w); */
     Vector3 euler = QuaternionToEuler(q);
@@ -55,6 +57,25 @@ Vector3 DirectionToVector3(Direction dir) {
     return dir_vec;
 }
 
+// UP is {0,1,0} (wtf)
+Quaternion Vector3ToQuaternion(Vector3 vec) {
+    Quaternion q = QuaternionFromMatrix(MatrixLookAt((Vector3){0}, vec, Vector3UP));
+    q = QuaternionMultiply(q, QuaternionFromEuler(0, -90*DEG2RAD, 0));
+
+    Vector3 axis = {0};
+    float angle = 0;
+    QuaternionToAxisAngle(q, &axis, &angle);
+    axis = Vector3RotateByAxisAngle(axis, (Vector3){.y=1}, -90*DEG2RAD);
+
+    return QuaternionFromAxisAngle(axis, -angle);
+}
+
+Matrix MatrixFromDirection(Direction dir) {
+    Vector3 vec = DirectionToVector3(dir);
+    Quaternion q = Vector3ToQuaternion(vec);
+    return QuaternionToMatrix(q);
+}
+
 typedef struct FValue {
     float max, val;
 } FValue;
@@ -73,6 +94,7 @@ typedef enum WaeponType {
 
 typedef struct Weapon {
     WaeponType type;
+    Vector3 barrel;
     IValue ammo;
 } Weapon;
 
@@ -87,9 +109,11 @@ typedef struct Player {
     Direction direction;
     Camera3D *camera;
     Weapon weapon;
+    ColliderBox collider;
 } Player;
 
 void player_camera_update(Player *p) {
+    if (p->camera == NULL) return;
     p->camera->position = p->position;
     p->camera->target = Vector3Add(p->position, DirectionToVector3(p->direction));
 }
@@ -153,23 +177,16 @@ void player_update(Player *p) {
 
 /* #define WEAPON_OFFSET (Vector3){.x = 0.1, .y = -0.2, .z = 0.2} */
 
-void player_weapon_draw(Player p) {
-    Model model = weapon_model_by_type[p.weapon.type];
-    Vector3 pos = p.position;
+void player_weapon_draw(Player *p) {
+    Model model = weapon_model_by_type[p->weapon.type];
+    Vector3 pos = p->position;
 
-    // THIS kinda works but rotate along global axis
-    /* Quaternion q = QuaternionFromEuler(0, p.direction.yaw, -p.direction.pitch); */
-
-
-    Quaternion q = QuaternionFromVector3ToVector3(p.position, Vector3Add(p.position, DirectionToVector3(p.direction)));
-    /* printf_quaternion(q); */
-
-    model.transform = QuaternionToMatrix(q);
+    model.transform = MatrixFromDirection(p->direction);
     /* DrawModelEx(model, pos, axis, angle, Vector3One(), WHITE); */
     DrawModel(model, pos, .1, WHITE);
 }
 
-void player_draw(Player p) {
+void player_draw(Player *p) {
     player_weapon_draw(p);
 }
 
@@ -193,30 +210,6 @@ void draw_gizmo(float size) {
 
 void load_waepon_models() {
     weapon_model_by_type[WEAPON_RAILGUN] = LoadModel("assets/railgun.obj");
-}
-
-// UP is {0,1,0} (wtf)
-Quaternion Vector3ToQuaternion(Vector3 vec) {
-    Quaternion q = QuaternionFromMatrix(MatrixLookAt((Vector3){0}, vec, Vector3UP));
-    q = QuaternionMultiply(q, QuaternionFromEuler(0, -90*DEG2RAD, 0));
-
-    /* // Draw it's angle axis */
-    /* Quaternion q = QuaternionFromEuler(0, debug_dir.yaw, -debug_dir.pitch); */
-
-    Vector3 axis = {0};
-    float angle = 0;
-    QuaternionToAxisAngle(q, &axis, &angle);
-    axis = Vector3RotateByAxisAngle(axis, (Vector3){.y=1}, -90*DEG2RAD);
-    DrawLine3D((Vector3){0}, axis, YELLOW);
-    printf("angle: %f, axis: {%f, %f, %f}\n", angle, axis.x, axis.y, axis.z);
-
-    return QuaternionFromAxisAngle(axis, -angle);
-}
-
-Matrix MatrixFromDirection(Direction dir) {
-    Vector3 vec = DirectionToVector3(dir);
-    Quaternion q = Vector3ToQuaternion(vec);
-    return QuaternionToMatrix(q);
 }
 
 Direction debug_dir = {0};
@@ -263,9 +256,81 @@ void debug_direction() {
     DrawModel(railgun_debug, (Vector3){0}, 1, RED);
 }
 
+#define Array(type)                                             \
+typedef struct type##Array {                                    \
+    size_t len;                                                 \
+    size_t cap;                                                 \
+    type *data;                                                 \
+} type##Array;                                                  \
+                                                                \
+type##Array type##Array_create(size_t size) {                   \
+    type *data = malloc(sizeof(type)*size);                     \
+    return (type##Array){.len = 0, .cap = size, .data = data};  \
+}                                                               \
+type* type##Array_append(type##Array *array, type item) {       \
+    if (array->len == array->cap) return NULL;                  \
+    array->data[array->len] = item;                             \
+    type *ptr = &array->data[array->len];                       \
+    array->len++;                                               \
+    return ptr;                                                 \
+}                                                               \
+                                                                \
+void type##Array_destroy(type##Array array) {                   \
+    free(array.data);                                           \
+}
+
+typedef struct Enemy {
+    FValue speed;
+    Vector3 position;
+    Direction direction;
+} Enemy;
+
+Array(Enemy)
+
+typedef struct LevelBlock {
+    
+} LevelBlock;
+
+Array(LevelBlock)
+
+typedef struct World {
+    Player *player;
+    EnemyArray enemies;
+    LevelBlockArray blocks;
+} World;
+
+World World_create(Player *player) {
+    World world;
+    world.player = player;
+    world.enemies = EnemyArray_create(1024);
+    world.blocks = LevelBlockArray_create(1024);
+    return world;
+}
+
+void World_update(World *world) {
+    player_update(world->player);
+}
+
+void World_draw(World *world) {
+    player_draw(world->player);
+
+    DrawGrid(10, 1);
+    draw_gizmo(10);
+    debug_direction();
+}
+
+void World_draw2D(World *world) {
+}
+
+void World_destroy(World *world) {
+    EnemyArray_destroy(world->enemies);
+    LevelBlockArray_destroy(world->blocks);
+}
+
 int main() {
     /* printf("%f\n", fwarp(359.999, 360)); */
     /* return 0; */
+
 
     InitWindow(1200, 800, "template");
     SetTargetFPS(60);
@@ -289,26 +354,24 @@ int main() {
         .weapon = NEW_RAILGUN,
     };
 
+    World world = World_create(&player);
+    /* EnemyArray_append(world.enemies, (Enemy){ */
+    /*     .position */
+    /* }) */
+
     DisableCursor();
 
     while (!WindowShouldClose()) {
-        /* debug(camera); */
-        /* printf("player dir: {pitch: %f, yaw: %f}\n", player.direction.pitch, player.direction.yaw); */
-        /* printf("player dir vec: {%f, %f, %f}\n", DirectionToVector3(player.direction).x, DirectionToVector3(player.direction).y, DirectionToVector3(player.direction).z); */
-
         BeginDrawing();
         ClearBackground(BLACK);
         BeginMode3D(camera);
         
-        player_update(&player);
-        /* player_draw(player); */
-        
-        DrawGrid(10, 1);
-        draw_gizmo(10);
-        /* DrawModel(weapon_model_by_type[WEAPON_RAILGUN], (Vector3){0}, 0.2, WHITE); */
+        World_draw(&world);
+        World_update(&world);
 
-        debug_direction();
         EndMode3D();
+
+        World_draw2D(&world);
 
         DrawFPS(10, 10);
         EndDrawing();
