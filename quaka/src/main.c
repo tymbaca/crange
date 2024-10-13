@@ -165,7 +165,6 @@ void player_weapon_draw(Player p) {
     /* printf_quaternion(q); */
 
     model.transform = QuaternionToMatrix(q);
-
     /* DrawModelEx(model, pos, axis, angle, Vector3One(), WHITE); */
     DrawModel(model, pos, .1, WHITE);
 }
@@ -196,6 +195,12 @@ void load_waepon_models() {
     weapon_model_by_type[WEAPON_RAILGUN] = LoadModel("assets/railgun.obj");
 }
 
+// UP is {0,1,0}
+Quaternion Vector3ToQuaternion(Vector3 v) {
+    /* Vector3 s = Vector3CrossProduct(v, Vector3UP); */
+    /* Vector3 un = Vector3CrossProduct(v, s); */
+}
+
 Direction debug_dir = {0};
 void debug_direction() {
     if (IsKeyDown(KEY_LEFT)) {
@@ -210,11 +215,28 @@ void debug_direction() {
     if (IsKeyDown(KEY_DOWN)) {
         debug_dir = direction_pitch(debug_dir, 0.04);
     }
+    
+    // Draw direction
     DrawCircle3D((Vector3){0}, 1, (Vector3){.x = 1}, 90, PURPLE);
     Vector3 vec = DirectionToVector3(debug_dir);
     DrawLine3D((Vector3){0}, vec, PURPLE);
     DrawSphere(vec, 0.02, PURPLE);
-    printf("player dir vec: {%f, %f, %f}\n", vec.x, vec.y, vec.z);
+
+    Model railgun_debug = weapon_model_by_type[WEAPON_RAILGUN];
+    /* railgun_debug.transform = MatrixLookAt((Vector3){0}, vec, Vector3UP); */
+    Quaternion q = QuaternionFromMatrix(MatrixLookAt((Vector3){0}, vec, Vector3UP));
+
+    /* // Draw it's angle axis */
+    /* Quaternion q = QuaternionFromEuler(0, debug_dir.yaw, -debug_dir.pitch); */
+    Vector3 axis = {0};
+    float angle = 0;
+    QuaternionToAxisAngle(q, &axis, &angle);
+    axis = Vector3RotateByAxisAngle(axis, (Vector3){.y=1}, -90*DEG2RAD);
+    DrawLine3D((Vector3){0}, axis, YELLOW);
+    printf("angle: %f, axis: {%f, %f, %f}\n", angle, axis.x, axis.y, axis.z);
+
+    DrawModelEx(railgun_debug, (Vector3){0}, axis, -angle*RAD2DEG, Vector3One(), WHITE);
+    DrawModel(railgun_debug, (Vector3){0}, 1, RED);
 }
 
 int main() {
